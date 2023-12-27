@@ -1,0 +1,21 @@
+# FastAPI
+fastapi==0.96.0
+pydantic==1.10.8
+python-multipart==0.0.6
+python-dotenv==1.0.0
+uvicorn==0.22.0
+
+# Model
+torch==1.13.1
+torchvision==0.14.1
+cupy-cuda11x==12.1.0
+opencv-python==4.7.0.72
+mediapipe==0.10.2
+git+https://github.com/openai/CLIP.git
+
+# Real-ESRGan
+basicsr==1.4.2
+gfpgan==1.3.5
+
+# Download
+gdown==4.7.1

@@ -127,30 +127,60 @@ class TryonService:
                     original_image[top:bottom, left:right, :] = cropped_output
 
                 idx += 1
-                cv2.imwrite(f"{idx}.jpg", original_image)
+                # cv2.imwrite(f"{idx}.jpg", original_image)
                 vid_writer.write(original_image)
             else:
                 break
+    @torch.no_grad()
+    def gen(self, camera, pil_clothes, pil_edge=None, fps=30):
+        """Video streaming generator function."""
+        transform_image = get_transform(train=False)
+        transform_edge = get_transform(train=False, method=Image.NEAREST, normalize=False)
+        pil_clothes = self._preprocess_image(pil_clothes)
+        clothes = transform_image(pil_clothes)
+        if pil_edge is not None:
+            clothes_edge = self._preprocess_image(pil_clothes, color='L')
+            clothes_edge = transform_edge(clothes_edge)
+        else:
+            clothes_edge = self._predict_edge(clothes)
 
-    def gen(camera, face_detection=False):
-        while True:
-            frame = camera.get_frame()
-            if frame:
-                if face_detection:
-                    # Thực hiện nhận diện khuôn mặt
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    faces = face_classifier.detectMultiScale(gray, 1.1, 3)
+        while camera.isOpened():
+            success, frame = camera.get_frame()
+            if success is True:
+                frame = frame[:, :, :]
+                cropped_result, frame = self._preprocess_frame(frame)
+                if frame is not None:
+                    pil_img = Image.fromarray(frame)
+                    img = transform_image(pil_img)
 
-                    # Vẽ hộp xung quanh khuôn mặt
-                    for (x, y, w, h) in faces:
-                        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                # TRYON
+                original_image = cropped_result['origin_frame']
+                if frame is not None:
+                    cv_img = (
+                        self._predict_tryon(img, clothes, clothes_edge)
+                        .permute(1, 2, 0)
+                        .detach()
+                        .cpu()
+                        .numpy()
+                        + 1
+                    ) / 2
+                    rgb = (cv_img * 255).astype(np.uint8)
+                    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
-                # Chuyển đổi frame thành dạng bytes để trả về
-                _, jpeg = cv2.imencode('.jpg', frame)
-                frame = jpeg.tobytes()
+                    # Re-mapping to original image
+                    top, left, bottom, right = (
+                        cropped_result['top'],
+                        cropped_result['left'],
+                        cropped_result['bottom'],
+                        cropped_result['right'],
+                    )
+                    cropped_output = cv2.resize(bgr, (right - left, bottom - top))
+                    original_image[top:bottom, left:right, :] = cropped_output
 
+                ret, jpeg = cv2.imencode('.jpg', original_image)
+                original_image = jpeg.tobytes()
                 yield (b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                    b'Content-Type: image/jpeg\r\n\r\n' + original_image + b'\r\n')
 
     def _preprocess_image(self, pil_img, color='RGB'):
         pil_img = pil_img.convert(color).resize(self.img_size)

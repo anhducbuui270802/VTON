@@ -248,7 +248,9 @@ if __name__ == "__main__":
     pil_clothes = Image.open(
         "D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/000097_1.jpg"
     )
-    cap = cv2.VideoCapture("D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/Test_persion.mp4")
+    cap = cv2.VideoCapture("D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/v.mp4")
+    # cap = cv2.VideoCapture("D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/Test_persion.mp4")
+
     with torch.no_grad():
         model.tryon_video(cap, pil_clothes)
 

@@ -72,16 +72,10 @@ async def try_on_image(person_image: UploadFile, garment_image: UploadFile):
         }
     )
 
-# @router.get('/video_feed', response_class=HTMLResponse)
-# async def video_feed():
-#     """Video streaming route. Put this in the src attribute of an img tag."""
-#     return  StreamingResponse(tryon_service.gen(Camera()),
-#                     media_type='multipart/x-mixed-replace; boundary=frame')
-
-@router.get('/video_feed', response_class=HTMLResponse)
-async def video_feed():
-    return StreamingResponse(tryon_service.gen(Camera()), media_type='multipart/x-mixed-replace; boundary=frame')
-
-@router.get('/video_feed_processed', response_class=HTMLResponse)
-async def video_feed_processed():
-    return StreamingResponse(tryon_service.gen(Camera(), face_detection=True), media_type='multipart/x-mixed-replace; boundary=frame')
+@router.post('/video_feed', response_class=HTMLResponse)
+async def video_feed(garment_image: UploadFile):
+    """Video streaming route. Put this in the src attribute of an img tag."""
+    cloth_image_content = await garment_image.read()
+    pil_clothes = Image.open(BytesIO(cloth_image_content)).convert('RGB')
+    return  StreamingResponse(tryon_service.gen(Camera(), pil_clothes),
+                    media_type='multipart/x-mixed-replace; boundary=frame')

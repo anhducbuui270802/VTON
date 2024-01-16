@@ -61,7 +61,7 @@ function setup_samples(samples) {
 			convertImagePathToDataURL(image, sample);
 
 			image.addEventListener("click", () => {
-				if (current_step === 2) {
+				if (current_step === 1) {
 					selected_garment_id = image.dataset.id;
 				}
 				handleImageClick(image.src); // Call your custom onClick function with the corresponding index
@@ -96,26 +96,19 @@ function handleImageClick(image_url) {
 function get_sample(type){
 	let samples = [];
 	let samplesPath = "static/samples/" + type + "/";
-	if (type=="model"){
-		let files = ["000020_0.jpg", "000228_0.jpg", "000619_0.jpg", "001387_0.jpg", "002371_0.jpg",
-				"002523_0.jpg", "004423_0.jpg", "010057_0.jpg", "014612_0.jpg", "019243_0.jpg"];
-		for (let i = 0; i < files.length; ++i) {
-			samples.push(samplesPath + files[i]);
-		}
-	}
-	else if (type=="garment"){
+	if (type=="garment"){
 		let files = ["000339_1.jpg", "001448_1.jpg", "003749_1.jpg", "005285_1.jpg", "005586_1.jpg",
 					"005683_1.jpg", "008771_1.jpg", "009758_1.jpg", "013319_1.jpg", "018047_1.jpg"];
 		for (let i = 0; i < files.length; ++i) {
 			samples.push(samplesPath + files[i]);
 		}
 	}
-
 	return samples
 }
 
 
-setup_samples(get_sample("model"));
+// setup_samples(get_sample("model"));
+setup_samples(get_sample("garment"));
 setup_upload_container(1);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -131,14 +124,10 @@ function setup_upload_container(step){
 	}
 
 	if (step==1){
-		step_instruction.innerHTML = "Upload your model OR select from list, then click \"Next\"";
-		step_instruction_note.innerHTML = "Simple or uniform background is preferred";
-	}
-	else if (step==2){
 		step_instruction.innerHTML = "Upload your garment OR select from list, then click \"Next\"";
 		step_instruction_note.innerHTML = "We only support virtual try-on top garments,<br/>others may produce bad results";
 	}
-	else if (step==3){
+	else if (step==2){
 		step_instruction.innerHTML = "Try-on result";
 	}
 }
@@ -147,7 +136,7 @@ document.querySelectorAll(".upload-drop-zone").forEach((dropZoneElement) => {
 	const inputElement = dropZoneElement.querySelector("input");
 
 	dropZoneElement.addEventListener("click", (e) => {
-		if (current_step <= 2) {
+		if (current_step <= 1) {
 			inputElement.click();
 		}
 	});
@@ -212,7 +201,6 @@ function updateThumbnail(dropZoneElement, file) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Flow change
-const person_image = document.querySelector("#person-frame").querySelector(".image-frame");
 const garment_image = document.querySelector("#garment-frame").querySelector(".image-frame");
 const control_buttons = document.querySelector("#control-button");
 function set_frame(frame, imageSrc){
@@ -249,15 +237,6 @@ control_buttons.addEventListener("click", () => {
 	}
 
 	if (current_step == 1) {
-		set_frame(person_image, thumbnailElement.style.backgroundImage);
-		setup_samples(get_sample("garment"));
-		thumbnailElement.remove();
-
-		setup_upload_container(2);
-		current_step = 2;
-	}
-
-	else if (current_step == 2) {
 		set_frame(garment_image, thumbnailElement.style.backgroundImage);
 		document.getElementById("sample-container").innerHTML = '';
 		thumbnailElement.remove();
@@ -266,41 +245,40 @@ control_buttons.addEventListener("click", () => {
 			uinstruction.remove();
 		}
 
-		person_url = dataURLtoFile(URLtoData(person_image.style.backgroundImage));
 		garment_url = dataURLtoFile(URLtoData(garment_image.style.backgroundImage));
-		tryOn(person_url, garment_url);
+		tryOn_Camera(garment_url);
 		runRecommendation(garment_url, "", TON_SUR_TON);
-		setup_upload_container(3);
-		current_step = 3;
+		setup_upload_container(2);
+		current_step = 2;
 
 		control_buttons.style.display = "none";
 	}
 });
 
 
-function tryOn(person_url, garment_url) {
+function tryOn_Camera(garment_url) {
 	document.getElementById("try-on-loader").style.display = "block";
     const body = new FormData();
-    body.append("person_image", person_url);
     body.append("garment_image", garment_url);
 
-    fetch('/try-on/image', {
+    fetch('/try-on/video_feed', {
         method: 'POST',
         headers: {
             'Accept': 'application/json',
         },
         body: body
     }).then(async (response) => {
-        let data = await response.json();
-        if (data["message"] == "success") {
-			const old_data = URLtoData(person_image.style.backgroundImage);
-			const new_data = data["result"];
-			show_before_after_result(old_data, new_data);
-			showUpscale(old_data, new_data);
-        }
-        else {
-            window.alert("Something wrong. Please check your input and try again next time");
-        }
+        // let data = await response.json();
+        // if (data["message"] == "success") {
+		// 	const old_data = URLtoData(person_image.style.backgroundImage);
+		// 	const new_data = data["result"];
+		// 	show_before_after_result(old_data, new_data);
+		// 	showUpscale(old_data, new_data);
+        // }
+        // else {
+        //     window.alert("Something wrong. Please check your input and try again next time");
+        // }
+		console.log("done")
 		document.getElementById("try-on-loader").style.display = "none";
     })
 }
@@ -487,9 +465,8 @@ function showSimilarResult(containerId, results, shouldPop) {
 				const id = parseInt(e.target.parentNode.id.substring(5));
 				const backgroundImage = `url('${image.src}')`;
 				set_frame(garment_image, backgroundImage);
-				let person_url = dataURLtoFile(URLtoData(person_image.style.backgroundImage));
 				let garment_url = dataURLtoFile(image.src)
-				tryOn(person_url, garment_url);
+				tryOn_Camera(garment_url);
 				runCompRecommendation(id, garment_url, getSelectedStyle());
 				hightlight(document.getElementById("intra-results"), id);
 				selected_garment_id = wrapper.dataset.id;

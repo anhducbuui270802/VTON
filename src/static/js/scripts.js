@@ -97,7 +97,7 @@ function get_sample(type){
 	let samples = [];
 	let samplesPath = "static/samples/" + type + "/";
 	if (type=="model"){
-		let files = ["000020_0.jpg", "000228_0.jpg", "000619_0.jpg", "001387_0.jpg", "002371_0.jpg",
+		let files = [ "model1.jpg","model2.jpg", "model3.jpg", "model4.jpg", "000020_0.jpg", "000228_0.jpg", "000619_0.jpg", "001387_0.jpg", "002371_0.jpg",
 				"002523_0.jpg", "004423_0.jpg", "010057_0.jpg", "014612_0.jpg", "019243_0.jpg"];
 		for (let i = 0; i < files.length; ++i) {
 			samples.push(samplesPath + files[i]);

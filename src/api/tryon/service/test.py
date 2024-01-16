@@ -10,6 +10,22 @@ from u2net import load_model as load_edge_detect_model
 from u2net import norm_pred
 from yolov7_pose import Yolov7PoseEstimation
 
+class Camera():
+    def __init__(self):
+        self.video = cv2.VideoCapture(0)
+
+    def __del__(self):
+        self.video.release()
+
+    def get_frame(self):
+        success, image = self.video.read()
+        # ret, jpeg = cv2.imencode('.jpg', image)
+        # return jpeg.tobytes()
+        return success, image
+    
+    def isOpened(self):
+        return self.video.isOpened()
+    
 
 class TryonService:
     def __init__(
@@ -77,13 +93,70 @@ class TryonService:
                 idx += 1
                 # cv2.imwrite(f"{idx}.jpg", original_image)
                 vid_writer.write(original_image)
-                vid_writer.write(frame)
+                # vid_writer.write(frame)
 
             else:
                 break
         cap.release()
         vid_writer.release()
         cv2.destroyAllWindows()
+
+    def tryon_camera(self, pil_clothes, camera=None, pil_edge=None) -> Any:
+        """Video streaming generator function."""
+        if camera == None:
+            camera = cv2.VideoCapture(0)
+        transform_image = get_transform(train=False)
+        transform_edge = get_transform(train=False, method=Image.NEAREST, normalize=False)
+        pil_clothes = self._preprocess_image(pil_clothes)
+        clothes = transform_image(pil_clothes)
+        if pil_edge is not None:
+            clothes_edge = self._preprocess_image(pil_clothes, color='L')
+            clothes_edge = transform_edge(clothes_edge)
+        else:
+            clothes_edge = self._predict_edge(clothes)
+
+        while camera.isOpened():
+            success, frame = camera.get_frame()
+            if success is True:
+                frame = frame[:, :, :]
+                cropped_result, frame = self._preprocess_frame(frame)
+                if frame is not None:
+                    pil_img = Image.fromarray(frame)
+                    img = transform_image(pil_img)
+
+                # TRYON
+                original_image = cropped_result['origin_frame']
+                if frame is not None:
+                    cv_img = (
+                        self._predict_tryon(img, clothes, clothes_edge)
+                        .permute(1, 2, 0)
+                        .detach()
+                        .cpu()
+                        .numpy()
+                        + 1
+                    ) / 2
+                    rgb = (cv_img * 255).astype(np.uint8)
+                    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+                    # Re-mapping to original image
+                    top, left, bottom, right = (
+                        cropped_result['top'],
+                        cropped_result['left'],
+                        cropped_result['bottom'],
+                        cropped_result['right'],
+                    )
+                    cropped_output = cv2.resize(bgr, (right - left, bottom - top))
+                    original_image[top:bottom, left:right, :] = cropped_output
+                
+                cv2.imshow("Camera", original_image)
+                key = cv2.waitKey(20)
+                if key == 27: # exit on ESC
+                    break
+                # ret, jpeg = cv2.imencode('.jpg', original_image)
+                # original_image = jpeg.tobytes()
+                # yield (b'--frame\r\n'
+                #     b'Content-Type: image/jpeg\r\n\r\n' + original_image + b'\r\n')
+
 
     def tryon_image(self, pil_img, pil_clothes, pil_edge=None) -> Any:
         transform_image = get_transform(train=False)
@@ -248,10 +321,15 @@ if __name__ == "__main__":
     pil_clothes = Image.open(
         "D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/000097_1.jpg"
     )
-    cap = cv2.VideoCapture("D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/v.mp4")
+    # cap = cv2.VideoCapture("D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/v.mp4")
     # cap = cv2.VideoCapture("D:/DUCBUI/UIT/DLvaUngdung/DoAn/KiseKloset/src/api/tryon/service/Test_persion.mp4")
 
+    # with torch.no_grad():
+    #     model.tryon_video(cap, pil_clothes)
+
+    camera = Camera()
     with torch.no_grad():
-        model.tryon_video(cap, pil_clothes)
+        model.tryon_camera(pil_clothes, camera)
+
 
     print("end")

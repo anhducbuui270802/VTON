@@ -3,14 +3,14 @@
 ### 🧰 Install
 Clone this repo.
 ```
-git clone https://github.com/KiseKloset/KiseKloset.git
-cd KiseKloset
+git clone https://github.com/anhducbuui270802/VTON.git
+cd VTON
 ```
 
 Install with `conda` (we provide script `install.sh`)
 ```
-conda create -n kisekloset python=3.10
-conda activate kisekloset
+conda create -n dm_vton_demo python=3.10
+conda activate dm_vton_demo
 bash install.sh
 ```
 
